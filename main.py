@@ -35,6 +35,16 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# ASGI Middleware to resolve Vercel serverless path prefix routing mismatches
+@app.middleware("http")
+async def vercel_path_rewrite_middleware(request: Request, call_next):
+    path = request.scope.get("path", "")
+    if path.startswith("/api/index.py"):
+        request.scope["path"] = path[len("/api/index.py"):] or "/"
+    elif path.startswith("/api") and not path.startswith("/api/"):
+        request.scope["path"] = path[len("/api"):] or "/"
+    return await call_next(request)
+
 # Setup Jinja2 templates directory with absolute path for Vercel compatibility
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
@@ -144,6 +154,10 @@ def startup_event():
         db.close()
 
 # REST API Routes
+
+@app.get("/")
+def root():
+    return {"message": "Patient Registration API is Live!"}
 
 @app.get("/health", response_model=APIResponse[dict])
 def health_check():
