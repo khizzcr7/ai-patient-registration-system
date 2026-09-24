@@ -21,7 +21,6 @@ from schemas import (
     PatientResponse
 )
 
-# Configure comprehensive stdout logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -35,17 +34,14 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Setup Jinja2 templates directory with absolute path for Vercel compatibility
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
-# Custom Exception Class for carrying response payload along with status code
 class EnvelopeHTTPException(HTTPException):
     def __init__(self, status_code: int, detail: str, data: Optional[dict] = None):
         super().__init__(status_code=status_code, detail=detail)
         self.data = data
 
-# Custom Exception Handlers enforcing standard JSON envelope {"data": ..., "error": ...}
 @app.exception_handler(EnvelopeHTTPException)
 async def envelope_http_exception_handler(request: Request, exc: EnvelopeHTTPException):
     return JSONResponse(
@@ -76,13 +72,11 @@ async def generic_exception_handler(request: Request, exc: Exception):
         content={"data": None, "error": "Internal server error"}
     )
 
-# Ensure database tables are created automatically
 try:
     Base.metadata.create_all(bind=engine)
 except Exception as e:
     logger.warning(f"Database table creation during import: {e}")
 
-# Startup Event for Table Creation and Seeding
 @app.on_event("startup")
 def startup_event():
     logger.info("Initializing database tables...")
@@ -143,8 +137,6 @@ def startup_event():
     finally:
         db.close()
 
-# REST API Routes
-
 @app.get("/")
 def root():
     return {"message": "Patient Registration API is Live!"}
@@ -159,7 +151,6 @@ def create_patient(payload: PatientCreate, db: Session = Depends(get_db)):
 
     clean_phone = payload.phone_number
 
-    # Duplicate check: check if an active patient with this phone number exists
     existing_patient = db.query(Patient).filter(
         Patient.phone_number == clean_phone,
         Patient.deleted_at.is_(None)
